@@ -1,58 +1,45 @@
 import { Button } from "./components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import AllTask from "./components/AllTask";
-import DoingTasks from "./components/DoingTasks";
-import WithIssue from "./components/WithIssue";
-import EscapedTasks from "./components/EscapedTasks";
-import DoneTasks from "./components/DoneTasks";
 import Form from "./components/Form";
 import { buttons } from "./data/DammyData";
-import { getAllTasks } from "./data/databaseData";
-import PendingTasks from "./components/PendingTasks";
+import { useDispatch, useSelector } from "react-redux";
+import { changeStatus, fetchTasks, filterTask } from "./store/taskSlice";
+import LoadingComponent from "./components/loadingComponent";
+import { useNavigate } from "react-router-dom";
 
 interface IButton {
   name: string;
   value: string;
 }
 
-export interface ITask {
-  title: string;
-  description: string;
-  status: string;
-  _id: string;
-}
-
 const App = () => {
-  const [status, setStatus] = useState("all");
-  const [data, setData] = useState<ITask[]>([]);
-  const [allTasks, setAllTasks] = useState<ITask[]>([]);
-  const [loading, setLoading] = useState(false);
+  // const [status, setStatus] = useState("all");
 
-  const getDatabaseTask = async () => {
-    setLoading(true);
-    const databaseData = await getAllTasks();
-    if (databaseData.tasks) {
-      setAllTasks(databaseData.tasks);
-    }
-    setLoading(false);
-  };
+  // Select filteredData from the Redux store
+  const filteredTasks = useSelector((state: any) => state.task.filteredData);
+  const isLoading = useSelector((state: any) => state.task.isLoading);
+  const data = useSelector((state: any) => state.task.data); // Fetch all tasks from the store
+  const status = useSelector((state: any) => state.task.status);
 
-  const filterData = (status: string) => {
-    if (status === "all") {
-      setData(allTasks);
-      return;
-    }
-    const tasks = allTasks?.filter((task) => task.status === status);
-    setData(tasks);
-  };
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
+  // Fetch tasks once on mount
   useEffect(() => {
-    getDatabaseTask();
-  }, []);
+    dispatch(fetchTasks() as any); // Fetch tasks when the component mounts
+  }, [dispatch]);
 
+  // Filter tasks when status changes and tasks are fetched
   useEffect(() => {
-    filterData(status);
-  }, [status, allTasks]);
+    if (data.length > 0) {
+      // Only filter if data exists
+      dispatch(filterTask());
+    }
+    if (status !== "update") {
+      navigate("/");
+    }
+  }, [status, dispatch, data]); // Trigger when status or data changes
 
   return (
     <div className="px-2 lg:px-32 py-10">
@@ -64,12 +51,11 @@ const App = () => {
       <div className="flex flex-col lg:flex-row items-start gap-5 py-3">
         {/* SIDE NAVBAR */}
         <div className="w-full lg:w-1/3 p-2 lg:p-5 grid lg:grid-cols-none grid-cols-3 gap-2">
-          {/* links */}
           {buttons.map((button: IButton) => {
             const isActive = status === button.value;
             return (
               <Button
-                onClick={() => setStatus(button.value)}
+                onClick={() => dispatch(changeStatus(button.value))}
                 key={button.value}
                 className={`w-full py-7 px-6 hover:bg-blue-600 hover:text-white transition-all duration-300 ease-in-out text-xl font-semibold flex items-center justify-start bg-gray-700 text-gray-300 rounded-lg shadow-md hover:shadow-lg ${
                   isActive && "bg-blue-700"
@@ -81,23 +67,20 @@ const App = () => {
           })}
         </div>
         <div className="w-full lg:w-2/3">
-          {loading && (
-            <div className="text-xl font-semibold mt-4 ml-4">Loading...</div>
+          {isLoading && <LoadingComponent />}
+          {isLoading && (
+            <p className="mt-4 ml-5 text-xl font-bold">Loading...</p>
           )}
-          {!loading && data?.length === 0 && status !== "form" && (
-            <p className="text-xl text-semibold mt-4 text-center">
-              No tasks for now
-            </p>
-          )}
-          {status === "all" && <AllTask tasksData={data} />}
-          {status === "pending" && <PendingTasks tasksData={data} />}
-          {status === "doing" && <DoingTasks tasksData={data} />}
-          {status === "with_issue" && <WithIssue tasksData={data} />}
-          {status === "escaped" && <EscapedTasks tasksData={data} />}
-          {status === "done" && <DoneTasks tasksData={data} />}
-          {status === "form" && (
-            <Form setStatus={setStatus} setAllTasks={setAllTasks} />
-          )}
+          {!isLoading &&
+            filteredTasks?.length === 0 &&
+            status !== "form" &&
+            status !== "update" && (
+              <p className="text-xl text-semibold mt-4 text-center">
+                No tasks for now
+              </p>
+            )}
+          <AllTask tasksData={filteredTasks} />
+          {(status === "form" || status === "update") && <Form />}
         </div>
       </div>
     </div>

@@ -1,21 +1,38 @@
-import { createTask } from "@/data/databaseData";
-import React, { ChangeEvent, FormEvent, useState } from "react";
+import { changeStatus, taskCreate, taskUpdate } from "@/store/taskSlice";
+import { ICreateTask, ITask } from "@/types";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import LoadingComponent from "./loadingComponent";
-import { ITask } from "@/App";
+// import { ITask } from "@/types";
 
-const Form = ({
-  setStatus,
-  setAllTasks,
-}: {
-  setStatus: React.Dispatch<React.SetStateAction<string>>;
-  setAllTasks: React.Dispatch<React.SetStateAction<ITask[]>>;
-}) => {
-  const [task, setTask] = useState({
+const Form = () => {
+  // URL id
+  const taskId = new URLSearchParams(window.location.search).get("taskId");
+  const [task, setTask] = useState<ICreateTask>({
     title: "",
     description: "",
   });
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
+
+  // redux
+  const isLoading = useSelector((state: any) => state.task.isLoading);
+  const error = useSelector((state: any) => state.task.error);
+  const filteredData = useSelector((state: any) => state.task.filteredData);
+
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (taskId) {
+      const updateTask = filteredData.find(
+        (task: ITask) => task._id === taskId
+      );
+      setTask({
+        title: updateTask ? updateTask.title : "",
+        description: updateTask ? updateTask.description : "",
+      });
+    } else {
+      setTask({ title: "", description: "" });
+    }
+  }, [taskId]);
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -29,27 +46,27 @@ const Form = ({
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setUploading(true);
-    try {
-      const data = await createTask(task);
-      if (!data.newTask) {
-        setError(data.message);
-      }
-      setStatus("all");
-      setAllTasks((prev) => [...prev, data.newTask]);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setUploading(false);
+    const data = {
+      task,
+      taskId,
+    };
+    if (taskId) {
+      dispatch(taskUpdate(data as any) as any);
+    } else {
+      dispatch(taskCreate(task as any) as any);
     }
+    dispatch(changeStatus("all"));
   };
+
+  if (taskId && !task.title) {
+    return <LoadingComponent />;
+  }
 
   return (
     <>
-      {uploading && <LoadingComponent />}
       <div className="max-w-xl mx-2 md:mx-auto mt-10 p-6 bg-gray-800 rounded-lg shadow-lg">
         <h1 className="text-3xl font-semibold text-center text-white mb-6">
-          Add Task Here Below
+          {taskId ? "Update the below task" : "Add Task Here Below"}
         </h1>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -96,7 +113,7 @@ const Form = ({
             type="submit"
             className="w-full py-3 mt-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
           >
-            {uploading ? "Loading..." : "Add Task"}
+            {isLoading ? "Loading..." : taskId ? "Update Task" : "Add Task"}
           </button>
         </form>
       </div>

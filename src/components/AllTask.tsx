@@ -1,4 +1,4 @@
-import { ITask } from "@/App";
+import { ITask } from "@/types";
 import TaskComponent from "./TaskComponent";
 
 const AllTask = ({ tasksData }: { tasksData: ITask[] }) => {
